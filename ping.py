@@ -65,11 +65,15 @@ def main():
 
         # Split the data by character and add to our dataArray
         for line in ASCIIDATA:
+            print("Line: " + line.rstrip())
+            print("Encoded as: ")
             for entry in line:
                 # Make sure everything is a number, convert if not
                 dataArray.append(''.join(s for s in iter_bin(entry)))
+                print(dataArray[-1])
 
         ping(dataArray)
+
     elif DATATYPE == "NONE":
         # The user didn't pass in a data type :-(
         print("\n***************\nYou need to provide a data type, example --ascii\n*****************\n")
@@ -92,16 +96,23 @@ def ping(data):
         FNULL = None
 
     # Being sending
+    i = 0
     for line in data:
         for char in line:
             # Run systems ping, not writing my own and send to devnull
+            print("ping_" + str(i) + " and sleep: " + str(int(char) + wait))
             subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)
 
             # Sleep for the desired amount of time
             sleep(int(char) + wait)
-    subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)
-    print(dataArray)
+            i = i + 1
 
+    subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)
+    sleep(5)
+    subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)
+
+    print("Transmition finished for data:")
+    print(dataArray)
 
 if __name__ == '__main__':
     main()

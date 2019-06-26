@@ -7,20 +7,25 @@ from datetime import datetime as dTime
 from os import getuid
 from struct import *
 
-# Before we even start make sure we are running as root
-if getuid() != 0:
-    print("\nPlease run as root... Exiting\n")
-    sys.exit(-1)
-
 communications = dict()
 
-def signal_handler(signal, frame):
+def clear_data(s_addr):
+    if s_addr == "":
+        communications.clear()
+    else:
+        if s_addr in communications and len(communications[s_addr]) > 0:
+            print("clear data for: " + s_addr)
+            communications[s_addr].clear()
+
+def callculate_offsets(s_addr):
     lastTime = None
     first = True
     binary = list()
+
     # Get timeoffsets
-    print("Calculating offsets")
-    for com, value in communications.items():
+    print("Calculating offsets for: " + s_addr)
+    if s_addr in communications:
+        value = communications[s_addr]
         for date in value:
             if first:
                 lastTime = date
@@ -50,14 +55,23 @@ def signal_handler(signal, frame):
     for word in raw.split(" "):
         ascii += chr(int(word[:8], 2)) + " "
 
-    print("\n")
-    print(ascii)
+    print("EXFILTRATED DATA: " + ascii)
+
     #print(raw)
+    clear_data(str(s_addr))
+
+def signal_handler(signal, frame):
+    clear_data("")
     sys.exit(0)
 
-# This will listen for the control+c
+#######################################################
+
 signal.signal(signal.SIGINT, signal_handler)
 
+# Before we even start make sure we are running as root
+if getuid() != 0:
+    print("\nPlease run as root... Exiting\n")
+    sys.exit(-1)
 
 # create an INET, STREAMing socket
 try:
@@ -91,15 +105,24 @@ while True:
     s_addr = socket.inet_ntoa(iph[8])
     d_addr = socket.inet_ntoa(iph[9])
 
-    if str(s_addr) in communications:
-        communications[str(s_addr)].append(dTime.now())
+    ###### process received packet ###################################################
+
+    last = now = dTime.now()
+    print('Packet received from: ' + str(s_addr) + " at: " + str(now))
+
+    if str(s_addr) in communications and len(communications[str(s_addr)]) > 0:
+        last = communications[str(s_addr)][-1]
+
+    if (now - last).total_seconds() > 10:
+        clear_data(str(s_addr))
+
+    if int((now - last).total_seconds()) > 4 and int((now - last).total_seconds()) < 6:
+        print('FIN packet noticed for: ' + str(s_addr))
+        callculate_offsets(str(s_addr))
     else:
-        communications[str(s_addr)] = [dTime.now()]
+        if str(s_addr) in communications:
+            communications[str(s_addr)].append(now)
+        else:
+            communications[str(s_addr)] = [now]
 
-    print(' Source Address : ' + str(s_addr))
-
-    print(communications)
-
-
-
-
+    #print(communications)
