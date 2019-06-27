@@ -8,6 +8,10 @@ from os import getuid
 from struct import *
 
 communications = dict()
+duplicated_packet = 1
+
+def bits2string(b=None):
+    return ''.join([chr(int(x, 2)) for x in b])
 
 def clear_data(s_addr):
     if s_addr == "":
@@ -25,40 +29,34 @@ def callculate_offsets(s_addr):
     # Get timeoffsets
     print("Calculating offsets for: " + s_addr)
     if s_addr in communications:
+        #for a given ip
         value = communications[s_addr]
+        i = 0;
+        j = 0;
+        #calculate and round time
         for date in value:
             if first:
                 lastTime = date
                 first = False
             else:
-                binary.append((lastTime - date).total_seconds())
+                sb = str(round(abs((lastTime - date).total_seconds())))
+
+                #we need list of bit words ( 7th length - 0000000, 0000000...)
+                if len(binary) == j:
+                    binary.append(sb)
+                else:
+                    binary[j] = binary[j] + sb
+
+                i += 1
+                if i % 7 == 0 and i > 0:
+                    j += 1
+
+                #print ("bit: " + sb)
                 lastTime = date
 
-    # Remove every other entry
-    on = False
-    num = 0
-    raw = ""
-    ascii = ""
-    for entry in binary:
-        if not on:
-            on = True
-        else:
-            if num == 7:
-                raw += " " + str(round(abs(entry)))
-                on = False
-                num = 1
-            else:
-                raw += str(round(abs(entry)))
-                on = False
-                num = num + 1
-
-    for word in raw.split(" "):
-        ascii += chr(int(word[:8], 2)) + " "
-
+    print(binary)
+    ascii = bits2string(binary)
     print("EXFILTRATED DATA: " + ascii)
-
-    #print(raw)
-    clear_data(str(s_addr))
 
 def signal_handler(signal, frame):
     clear_data("")
@@ -107,6 +105,15 @@ while True:
 
     ###### process received packet ###################################################
 
+    ########## workaround for internal duplicated packets - 127.0.0.1
+    if str(s_addr) == "127.0.0.1":
+        if duplicated_packet:
+            duplicated_packet = 0
+            continue
+        else:
+            duplicated_packet = 1
+    ##########
+
     last = now = dTime.now()
     print('Packet received from: ' + str(s_addr) + " at: " + str(now))
 
@@ -119,6 +126,7 @@ while True:
     if int((now - last).total_seconds()) > 4 and int((now - last).total_seconds()) < 6:
         print('FIN packet noticed for: ' + str(s_addr))
         callculate_offsets(str(s_addr))
+        clear_data(str(s_addr))
     else:
         if str(s_addr) in communications:
             communications[str(s_addr)].append(now)
